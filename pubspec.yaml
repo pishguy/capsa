@@ -1,9 +1,10 @@
 name: capsa
 description: >
   A reactive state management library for Flutter inspired by SolidJS.
+  Builds on flutter_rearch for capsule-based DI and lifecycle.
   Fine-grained reactivity with Signals, Computed, Effects, reactive widgets,
   MVVM architecture, DI, and code generation.
-version: 1.0.0
+version: 1.0.1
 
 homepage: https://github.com/pishguy/capsa
 repository: https://github.com/pishguy/capsa.git
@@ -27,6 +28,8 @@ dependencies:
   build: ^4.0.6
   flutter:
     sdk: flutter
+  flutter_rearch: ^1.7.3
+  rearch: ^1.16.1
   source_gen: ^4.2.3
 
 dev_dependencies:

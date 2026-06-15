@@ -7,6 +7,8 @@
 
 **Capsa** is a reactive state management library for Flutter, inspired by SolidJS. It provides fine-grained reactivity with Signals, Computed values, Effects, and a rich set of reactive widgets — all without the boilerplate of ChangeNotifier, BLoC, or Riverpod.
 
+Capsa builds on top of **flutter_rearch** for capsule-based dependency injection and widget lifecycle management. `RearchConsumer`, `WidgetHandle`, and `capsule()` are re-exported directly — you only need `import 'package:capsa/capsa.dart'`.
+
 </td>
 </tr>
 </table>
@@ -45,21 +47,17 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
-  rearch: ^1.16.0
-  flutter_rearch: ^1.7.0
 ```
 
-> Capsa builds on the `rearch` capsule system for dependency injection and lifecycle management. Both packages are required.
+`rearch` and `flutter_rearch` are included automatically — no need to add them separately.
 
 ### Import
 
 ```dart
 import 'package:capsa/capsa.dart';
-import 'package:flutter_rearch/flutter_rearch.dart';
-import 'package:rearch/rearch.dart';
 ```
 
-> `flutter_rearch` provides `RearchConsumer` — needed for MVVM screens that use capsules. `rearch` provides `capsule()`, `WidgetHandle`, and core wiring.
+Everything is available from a single import: `RearchConsumer`, `WidgetHandle`, `capsule()`, `Signal`, `Computed`, `XReactive`, `UltraFor`, and all other APIs.
 
 ---
 

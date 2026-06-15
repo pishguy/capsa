@@ -1,5 +1,7 @@
 library capsa;
 
+export 'package:flutter_rearch/flutter_rearch.dart' show RearchConsumer, WidgetHandle;
+
 export 'src/annotations/capsa.dart';
 export 'src/capsa/capsa.dart';
 export 'src/core/reactive_core.dart';

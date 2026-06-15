@@ -7,6 +7,8 @@
 
 **Capsa** یک کتابخانه مدیریت state واکنش‌گرا (Reactive) برای Flutter است که از SolidJS الهام گرفته. این کتابخانه با Signal‌ها، Computed‌ها، Effect‌ها و ویجت‌های واکنش‌گرای غنی، مدیریت state را بدون boilerplate تغییرمی‌دهد.
 
+Capsa روی **flutter_rearch** برای تزریق وابستگی مبتنی بر capsule و مدیریت چرخه حیات ویجت‌ها ساخته شده. `RearchConsumer`، `WidgetHandle` و `capsule()` مستقیماً re-export شده‌اند — فقط به `import 'package:capsa/capsa.dart'` نیاز دارید.
+
 </td>
 </tr>
 </table>
@@ -43,19 +45,15 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
-  rearch: ^1.16.0
-  flutter_rearch: ^1.7.0
 ```
 
-> Capsa روی سیستم capsule کتابخونه `rearch` برای تزریق وابستگی و مدیریت چرخه حیات ساخته شده. هر دو package الزامی هستند.
+`rearch` و `flutter_rearch` به صورت خودکار اضافه می‌شوند — نیازی به افزودن جداگانه نیست.
 
 ```dart
 import 'package:capsa/capsa.dart';
-import 'package:flutter_rearch/flutter_rearch.dart';
-import 'package:rearch/rearch.dart';
 ```
 
-> `flutter_rearch` ویجت `RearchConsumer` را فراهم می‌کند — برای اسکرین‌های MVVM که از capsuleها استفاده می‌کنند. `rearch` توابع `capsule()` و `WidgetHandle` را ارائه می‌دهد.
+همه چیز از یک import در دسترس است: `RearchConsumer`، `WidgetHandle`، `capsule()`، `Signal`، `Computed`، `XReactive`، `UltraFor` و تمام APIهای دیگر.
 
 ---
 

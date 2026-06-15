@@ -7,6 +7,8 @@
 
 **Capsa** — SolidJS-dən ilhamlanan, Flutter üçün reaktiv state idarəetmə kitabxanası. Signal, Computed, Effect və zəngin reaktiv vidjetlərlə state idarəsini boilerplate-siz həll edir.
 
+Capsa, capsule əsaslı asılılıq inyeksiyası və vidjet həyat dövrü idarəsi üçün **flutter_rearch** üzərində qurulub. `RearchConsumer`, `WidgetHandle` və `capsule()` birbaşa re-export edilib — sadəcə `import 'package:capsa/capsa.dart'` kifayətdir.
+
 </td>
 </tr>
 </table>
@@ -43,19 +45,15 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
-  rearch: ^1.16.0
-  flutter_rearch: ^1.7.0
 ```
 
-> Capsa, asılılıq inyeksiyası və həyat dövrü idarəsi üçün `rearch` kitabxanasının capsule sistemi üzərində qurulub. Hər iki paket mütləqdir.
+`rearch` və `flutter_rearch` avtomatik əlavə olunur — ayrıca əlavə etməyə ehtiyac yoxdur.
 
 ```dart
 import 'package:capsa/capsa.dart';
-import 'package:flutter_rearch/flutter_rearch.dart';
-import 'package:rearch/rearch.dart';
 ```
 
-> `flutter_rearch` `RearchConsumer` vidjetini təmin edir — capsule istifadə edən MVVM ekranları üçün. `rearch` isə `capsule()` və `WidgetHandle` funksiyalarını təqdim edir.
+Hər şey tək importdan əlçatandır: `RearchConsumer`, `WidgetHandle`, `capsule()`, `Signal`, `Computed`, `XReactive`, `UltraFor` və bütün digər API-lər.
 
 ---
 
