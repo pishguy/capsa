@@ -1,3 +1,12 @@
+## 1.0.1
+
+- BREAKING: `rearch` and `flutter_rearch` are now direct dependencies of capsa (users no longer
+  need to add them separately).
+- `RearchConsumer`, `WidgetHandle`, and `capsule()` are re-exported from `capsa.dart`.
+  Single import `import 'package:capsa/capsa.dart'` covers everything.
+- Expanded READMEs with full code generator documentation, layering table, and capsule wiring
+  examples in English, Persian, and Azerbaijani.
+
 ## 1.0.0
 
 - Initial release.
