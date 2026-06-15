@@ -43,11 +43,19 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
+  rearch: ^1.16.0
+  flutter_rearch: ^1.7.0
 ```
+
+> Capsa, asılılıq inyeksiyası və həyat dövrü idarəsi üçün `rearch` kitabxanasının capsule sistemi üzərində qurulub. Hər iki paket mütləqdir.
 
 ```dart
 import 'package:capsa/capsa.dart';
+import 'package:flutter_rearch/flutter_rearch.dart';
+import 'package:rearch/rearch.dart';
 ```
+
+> `flutter_rearch` `RearchConsumer` vidjetini təmin edir — capsule istifadə edən MVVM ekranları üçün. `rearch` isə `capsule()` və `WidgetHandle` funksiyalarını təqdim edir.
 
 ---
 
@@ -299,11 +307,36 @@ await resource.reload();
 
 ## MVVM Pattern
 
+Capsa, hər təbəqənin **rearch capsule** ilə naqilləşdiyi laylı MVVM arxitekturasını izləyir. `@Capsa` annotasiyası ([Kod Generatoru](#kod-generatoru) bölməsinə baxın) capsule naqilləmə kodunu avtomatik yaradır.
+
+### Arxitektura təbəqələri
+
+| Təbəqə | Baza sinif | Vəzifə |
+|--------|------------|--------|
+| **ScreenModel** | `ScreenModel` | View state, business orchestration, həyat dövrü |
+| **Business** | `Business` | Use case-lər, validasiya, biznes məntiq |
+| **Repository** | `Repository` | Data access abstraksiyası, keş strategiyası |
+| **Datasource** | `Datasource` | Xam API/DB çağırışları, şəbəkə və ya lokal depolama |
+| **State** | (sadə sinif) | Reaktiv sahələr (Signal, ReactiveList, Computed) |
+| **View** | `RearchConsumer` | Capsule DI girişi olan Flutter vidjetləri |
+
 ```dart
+// State — yalnız reaktiv sahələr
+class MyState {
+  final users = ReactiveList<UserModel>();
+  final isLoading = Signal<bool>(true);
+  late final userCount = Computed(() => users.length);
+}
+
+// Business — use case-lər
 class MyBusiness extends Business {
+  final Repository repository;
+  MyBusiness({required this.repository});
+
   Future<List<User>> loadUsers() async { ... }
 }
 
+// ScreenModel — orchestrasiya, avtomatik təmizləmə üçün ReactiveScope-u genişləndirir
 class MyScreenModel extends ScreenModel {
   final state = MyState();
   final MyBusiness business;
@@ -313,20 +346,37 @@ class MyScreenModel extends ScreenModel {
   @override
   void onInit() {
     loadData();
-    track(effect(() { ... }, scope: this));
+    track(effect(() { ... }));
   }
 
   Future<void> loadData() async { ... }
 }
 
+// Screen — capsule-lara giriş üçün RearchConsumer istifadə edir
 class MyScreen extends RearchConsumer {
+  const MyScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetHandle use) {
     final model = use(myScreenModelCapsule);
-    return XReactive(() => Text(model.state.name()));
+    return XReactive(() => Text(model.state.userCount()));
   }
 }
 ```
+
+### Capsule naqilləmə (əl ilə)
+
+```dart
+final myDatasourceCapsule = capsule((_) => MyDatasource());
+final myRepositoryCapsule = capsule((use) =>
+    MyRepository(use(myDatasourceCapsule)));
+final myBusinessCapsule = capsule((use) =>
+    MyBusiness(repository: use(myRepositoryCapsule)));
+final myScreenModelCapsule = capsule((use) =>
+    MyScreenModel(business: use(myBusinessCapsule)));
+```
+
+`@Capsa` istifadə edərkən bu capsule-lar avtomatik yaranır — [Kod Generatoru](#kod-generatoru) bölməsinə baxın.
 
 ---
 
@@ -354,12 +404,123 @@ di.popScope();
 
 ## Kod Generatoru
 
+Capsa iki kod yaratma aləti təqdim edir:
+
+| Alət | Məqsəd |
+|------|--------|
+| `@Capsa` annotasiyası + `build_runner` | `.capsa.dart` faylı — capsule naqilləmə kodunun yaradılması |
+| `dart run capsa` CLI | Tam feature qovluq strukturunun şablon fayllarla yaradılması |
+
+### @Capsa annotasiyası + build_runner
+
+Annotasiyanı feature qovluğunuzdakı hər hansı sinifin üzərinə qoyun:
+
 ```dart
+import 'package:capsa/capsa.dart';
+
 @Capsa(path: 'lib/screen/profile')
 class Profile {}
 ```
 
-Builder işlədikdə capsule wiring və feature scaffolding yaradır.
+**Quraşdırma:** Layihənizə `build.yaml` əlavə edin:
+
+```yaml
+targets:
+  $default:
+    builders:
+      capsa|feature_builder:
+        enabled: true
+```
+
+**Generatoru işə salın:**
+
+```bash
+dart run build_runner build
+```
+
+**Yaradılan çıxış** — `profile.capsa.dart`:
+
+```dart
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+import 'package:rearch/rearch.dart';
+import 'business/profile_business.dart';
+import 'repository/profile_repository.dart';
+import 'datasource/profile_datasource.dart';
+
+final profileBusinessCapsule = capsule((use) {
+  return ProfileBusiness(repository: use(profileRepositoryCapsule));
+});
+
+final profileRepositoryCapsule = capsule((use) {
+  return ProfileRepository(use(profileDatasourceCapsule));
+});
+
+final profileDatasourceCapsule = capsule((use) {
+  return ProfileDatasource();
+});
+```
+
+Yaradılan capsule-lar ciddi təbəqələnməyə əməl edir:
+`DatasourceCapsule` → `RepositoryCapsule` → `BusinessCapsule`
+
+`ScreenModel` təyin etdikdə əl ilə əlavə edə bilərsiniz:
+
+```dart
+final profileScreenModelCapsule = capsule((use) {
+  return ProfileScreenModel(business: use(profileBusinessCapsule));
+});
+```
+
+Bu capsule-lar `RearchConsumer` ekranları tərəfindən istifadə olunur:
+
+```dart
+class ProfileScreen extends RearchConsumer {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetHandle use) {
+    final model = use(profileScreenModelCapsule);
+    return XReactive(() => Text(model.state.userCount()));
+  }
+}
+```
+
+### CLI feature scaffolder
+
+Tək bir əmrlə tam feature strukturu yaradın:
+
+```bash
+# Format: dart run capsa <feature-adı> <hədəf-yol>
+dart run capsa profile lib/screen/profile
+
+# Və ya qovluq adı feature adı ilə eynidirsə:
+dart run capsa lib/screen/profile
+```
+
+**Yaradılan struktur:**
+
+```
+lib/screen/profile/
+├── profile.dart                          # @Capsa annotasiyası + re-exportlar
+├── profile.capsa.dart                    # yaradılan capsule naqilləmə (build_runner-dan sonra)
+├── business/
+│   └── profile_business.dart
+├── repository/
+│   └── profile_repository.dart
+├── datasource/
+│   └── profile_datasource.dart
+├── model/
+│   └── profile_model.dart
+├── state/
+│   └── profile_state.dart
+├── screen_model/
+│   └── profile_screen_model.dart
+└── view/
+    └── profile_screen.dart
+```
+
+Hər şablon faylı doldurmağa hazır ilkin implementasiyaya malikdir.
 
 ---
 

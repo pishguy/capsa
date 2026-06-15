@@ -45,13 +45,21 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
+  rearch: ^1.16.0
+  flutter_rearch: ^1.7.0
 ```
+
+> Capsa builds on the `rearch` capsule system for dependency injection and lifecycle management. Both packages are required.
 
 ### Import
 
 ```dart
 import 'package:capsa/capsa.dart';
+import 'package:flutter_rearch/flutter_rearch.dart';
+import 'package:rearch/rearch.dart';
 ```
+
+> `flutter_rearch` provides `RearchConsumer` — needed for MVVM screens that use capsules. `rearch` provides `capsule()`, `WidgetHandle`, and core wiring.
 
 ---
 
@@ -310,13 +318,36 @@ await resource.reload();
 
 ## MVVM Pattern
 
+Capsa follows a layered MVVM architecture where each layer is wired via **rearch capsules**. The `@Capsa` annotation (see [Code Generator](#code-generator)) generates capsule wiring code automatically.
+
+### Architecture layers
+
+| Layer | Base class | Responsibility |
+|-------|-----------|----------------|
+| **ScreenModel** | `ScreenModel` | View state, business orchestration, lifecycle |
+| **Business** | `Business` | Use cases, validation, business logic |
+| **Repository** | `Repository` | Data access abstraction, caching strategy |
+| **Datasource** | `Datasource` | Raw API/DB calls, network or local storage |
+| **State** | (plain class) | Reactive fields (Signal, ReactiveList, Computed) |
+| **View** | `RearchConsumer` | Flutter widgets with capsule DI access |
+
 ```dart
-// Business layer
+// State — reactive fields only
+class MyState {
+  final users = ReactiveList<UserModel>();
+  final isLoading = Signal<bool>(true);
+  late final userCount = Computed(() => users.length);
+}
+
+// Business — use cases
 class MyBusiness extends Business {
+  final Repository repository;
+  MyBusiness({required this.repository});
+
   Future<List<User>> loadUsers() async { ... }
 }
 
-// Screen model
+// ScreenModel — orchestrator, extends ReactiveScope for auto-disposal
 class MyScreenModel extends ScreenModel {
   final state = MyState();
   final MyBusiness business;
@@ -326,21 +357,38 @@ class MyScreenModel extends ScreenModel {
   @override
   void onInit() {
     loadData();
-    track(effect(() { ... }, scope: this));
+    // auto-disposed when ScreenModel is disposed
+    track(effect(() { ... }));
   }
 
   Future<void> loadData() async { ... }
 }
 
-// Screen
+// Screen — uses RearchConsumer to access capsules
 class MyScreen extends RearchConsumer {
+  const MyScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetHandle use) {
     final model = use(myScreenModelCapsule);
-    return XReactive(() => Text(model.state.name()));
+    return XReactive(() => Text(model.state.userCount()));
   }
 }
 ```
+
+### Capsule wiring (hand-written)
+
+```dart
+final myDatasourceCapsule = capsule((_) => MyDatasource());
+final myRepositoryCapsule = capsule((use) =>
+    MyRepository(use(myDatasourceCapsule)));
+final myBusinessCapsule = capsule((use) =>
+    MyBusiness(repository: use(myRepositoryCapsule)));
+final myScreenModelCapsule = capsule((use) =>
+    MyScreenModel(business: use(myBusinessCapsule)));
+```
+
+When using `@Capsa`, these capsules are generated automatically — see the [Code Generator](#code-generator) section below.
 
 ---
 
@@ -368,12 +416,123 @@ di.popScope();   // disposed with scope
 
 ## Code Generator
 
+Capsa provides two code generation tools:
+
+| Tool | Purpose |
+|------|---------|
+| `@Capsa` annotation + `build_runner` | Generates `.capsa.dart` capsule wiring files |
+| `dart run capsa` CLI | Scaffolds a full feature folder structure with template files |
+
+### @Capsa annotation + build_runner
+
+Place the annotation on any class inside your feature folder:
+
 ```dart
+import 'package:capsa/capsa.dart';
+
 @Capsa(path: 'lib/screen/profile')
 class Profile {}
 ```
 
-Running the builder generates capsule wiring and feature scaffolding (`view/`, `screen_model/`, `business/`, `repository/`, `datasource/`, `state/`, `model/`).
+**Setup:** Add to your project's `build.yaml`:
+
+```yaml
+targets:
+  $default:
+    builders:
+      capsa|feature_builder:
+        enabled: true
+```
+
+**Run the generator:**
+
+```bash
+dart run build_runner build
+```
+
+**What it generates** — `profile.capsa.dart`:
+
+```dart
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+import 'package:rearch/rearch.dart';
+import 'business/profile_business.dart';
+import 'repository/profile_repository.dart';
+import 'datasource/profile_datasource.dart';
+
+final profileBusinessCapsule = capsule((use) {
+  return ProfileBusiness(repository: use(profileRepositoryCapsule));
+});
+
+final profileRepositoryCapsule = capsule((use) {
+  return ProfileRepository(use(profileDatasourceCapsule));
+});
+
+final profileDatasourceCapsule = capsule((use) {
+  return ProfileDatasource();
+});
+```
+
+The generated capsules follow a strict layering:
+`DatasourceCapsule` → `RepositoryCapsule` → `BusinessCapsule`
+
+When you also define a `ScreenModel` and register it in the feature file, you can add:
+
+```dart
+final profileScreenModelCapsule = capsule((use) {
+  return ProfileScreenModel(business: use(profileBusinessCapsule));
+});
+```
+
+These capsules are consumed by `RearchConsumer` screens:
+
+```dart
+class ProfileScreen extends RearchConsumer {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetHandle use) {
+    final model = use(profileScreenModelCapsule);
+    return XReactive(() => Text(model.state.userCount()));
+  }
+}
+```
+
+### CLI feature scaffolder
+
+Scaffold a complete feature folder with a single command:
+
+```bash
+# Format: dart run capsa <feature-name> <target-path>
+dart run capsa profile lib/screen/profile
+
+# Or when the folder name matches the feature:
+dart run capsa lib/screen/profile
+```
+
+**Creates the following structure:**
+
+```
+lib/screen/profile/
+├── profile.dart                          # @Capsa annotation + re-exports
+├── profile.capsa.dart                    # generated capsule wiring (after build_runner)
+├── business/
+│   └── profile_business.dart
+├── repository/
+│   └── profile_repository.dart
+├── datasource/
+│   └── profile_datasource.dart
+├── model/
+│   └── profile_model.dart
+├── state/
+│   └── profile_state.dart
+├── screen_model/
+│   └── profile_screen_model.dart
+└── view/
+    └── profile_screen.dart
+```
+
+Each template file has a minimal starting implementation ready for you to fill in.
 
 ---
 

@@ -43,11 +43,19 @@
 ```yaml
 dependencies:
   capsa: ^1.0.0
+  rearch: ^1.16.0
+  flutter_rearch: ^1.7.0
 ```
+
+> Capsa روی سیستم capsule کتابخونه `rearch` برای تزریق وابستگی و مدیریت چرخه حیات ساخته شده. هر دو package الزامی هستند.
 
 ```dart
 import 'package:capsa/capsa.dart';
+import 'package:flutter_rearch/flutter_rearch.dart';
+import 'package:rearch/rearch.dart';
 ```
+
+> `flutter_rearch` ویجت `RearchConsumer` را فراهم می‌کند — برای اسکرین‌های MVVM که از capsuleها استفاده می‌کنند. `rearch` توابع `capsule()` و `WidgetHandle` را ارائه می‌دهد.
 
 ---
 
@@ -299,11 +307,36 @@ await resource.reload();
 
 ## معماری MVVM
 
+Capsa از معماری لایه‌ای MVVM پیروی می‌کند که هر لایه توسط **rearch capsule**ها سیم‌کشی می‌شود. `@Capsa` annotation (به [تولید کد](#تولید-کد) مراجعه کنید) کد سیم‌کشی capsuleها را به صورت خودکار تولید می‌کند.
+
+### لایه‌های معماری
+
+| لایه | کلاس پایه | وظیفه |
+|------|-----------|-------|
+| **ScreenModel** | `ScreenModel` | state View، orchestration business، چرخه حیات |
+| **Business** | `Business` | use caseها، اعتبارسنجی، منطق کسب‌وکار |
+| **Repository** | `Repository` | انتزاع دسترسی به داده، استراتژی کش |
+| **Datasource** | `Datasource` | تماس‌های خام API/DB، شبکه یا ذخیره‌سازی محلی |
+| **State** | (کلاس ساده) | فیلدهای reactive (Signal، ReactiveList، Computed) |
+| **View** | `RearchConsumer` | ویجت‌های Flutter با دسترسی به DI از طریق capsule |
+
 ```dart
+// State — فقط فیلدهای reactive
+class MyState {
+  final users = ReactiveList<UserModel>();
+  final isLoading = Signal<bool>(true);
+  late final userCount = Computed(() => users.length);
+}
+
+// Business — use caseها
 class MyBusiness extends Business {
+  final Repository repository;
+  MyBusiness({required this.repository});
+
   Future<List<User>> loadUsers() async { ... }
 }
 
+// ScreenModel — orchestration، extends ReactiveScope برای auto-disposal
 class MyScreenModel extends ScreenModel {
   final state = MyState();
   final MyBusiness business;
@@ -313,19 +346,37 @@ class MyScreenModel extends ScreenModel {
   @override
   void onInit() {
     loadData();
-    track(effect(() { ... }, scope: this));
+    track(effect(() { ... }));
   }
 
   Future<void> loadData() async { ... }
 }
 
+// Screen — استفاده از RearchConsumer برای دسترسی به capsuleها
 class MyScreen extends RearchConsumer {
+  const MyScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetHandle use) {
     final model = use(myScreenModelCapsule);
-    return XReactive(() => Text(model.state.name()));
+    return XReactive(() => Text(model.state.userCount()));
   }
 }
+```
+
+### سیم‌کشی capsule (دستی)
+
+```dart
+final myDatasourceCapsule = capsule((_) => MyDatasource());
+final myRepositoryCapsule = capsule((use) =>
+    MyRepository(use(myDatasourceCapsule)));
+final myBusinessCapsule = capsule((use) =>
+    MyBusiness(repository: use(myRepositoryCapsule)));
+final myScreenModelCapsule = capsule((use) =>
+    MyScreenModel(business: use(myBusinessCapsule)));
+```
+
+هنگام استفاده از `@Capsa`، این capsuleها به صورت خودکار تولید می‌شوند — به بخش [تولید کد](#تولید-کد) مراجعه کنید.
 ```
 
 ---
@@ -354,12 +405,123 @@ di.popScope();
 
 ## تولید کد
 
+Capsa دو ابزار تولید کد ارائه می‌دهد:
+
+| ابزار | کاربرد |
+|------|--------|
+| `@Capsa` annotation + `build_runner` | تولید فایل `.capsa.dart` شامل سیم‌کشی capsuleها |
+| `dart run capsa` CLI | Scaffolding پوشه کامل feature با فایل‌های تمپلیت |
+
+### @Capsa annotation + build_runner
+
+آنnotation را روی هر کلاسی در پوشه feature قرار دهید:
+
 ```dart
+import 'package:capsa/capsa.dart';
+
 @Capsa(path: 'lib/screen/profile')
 class Profile {}
 ```
 
-اجرای builder، capsule wiring و scaffolding features را تولید می‌کند.
+**تنظیمات:** به پروژه خود `build.yaml` اضافه کنید:
+
+```yaml
+targets:
+  $default:
+    builders:
+      capsa|feature_builder:
+        enabled: true
+```
+
+**اجرای generator:**
+
+```bash
+dart run build_runner build
+```
+
+**خروجی تولید شده** — `profile.capsa.dart`:
+
+```dart
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+import 'package:rearch/rearch.dart';
+import 'business/profile_business.dart';
+import 'repository/profile_repository.dart';
+import 'datasource/profile_datasource.dart';
+
+final profileBusinessCapsule = capsule((use) {
+  return ProfileBusiness(repository: use(profileRepositoryCapsule));
+});
+
+final profileRepositoryCapsule = capsule((use) {
+  return ProfileRepository(use(profileDatasourceCapsule));
+});
+
+final profileDatasourceCapsule = capsule((use) {
+  return ProfileDatasource();
+});
+```
+
+Capsuleهای تولید شده از لایه‌بندی دقیق پیروی می‌کنند:
+`DatasourceCapsule` → `RepositoryCapsule` → `BusinessCapsule`
+
+وقتی `ScreenModel` را نیز تعریف کنید، می‌توانید به صورت دستی اضافه کنید:
+
+```dart
+final profileScreenModelCapsule = capsule((use) {
+  return ProfileScreenModel(business: use(profileBusinessCapsule));
+});
+```
+
+این capsuleها توسط اسکرین‌های `RearchConsumer` مصرف می‌شوند:
+
+```dart
+class ProfileScreen extends RearchConsumer {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetHandle use) {
+    final model = use(profileScreenModelCapsule);
+    return XReactive(() => Text(model.state.userCount()));
+  }
+}
+```
+
+### CLI feature scaffolder
+
+یک feature کامل را با یک دستور ایجاد کنید:
+
+```bash
+# فرمت: dart run capsa <نام-feature> <مسیر-هدف>
+dart run capsa profile lib/screen/profile
+
+# یا وقتی نام پوشه با نام feature یکی است:
+dart run capsa lib/screen/profile
+```
+
+**ساختار ایجاد شده:**
+
+```
+lib/screen/profile/
+├── profile.dart                          # @Capsa annotation + re-exports
+├── profile.capsa.dart                    # capsule wiring تولیدی (بعد از build_runner)
+├── business/
+│   └── profile_business.dart
+├── repository/
+│   └── profile_repository.dart
+├── datasource/
+│   └── profile_datasource.dart
+├── model/
+│   └── profile_model.dart
+├── state/
+│   └── profile_state.dart
+├── screen_model/
+│   └── profile_screen_model.dart
+└── view/
+    └── profile_screen.dart
+```
+
+هر فایل تمپلیت یک پیاده‌سازی اولیه دارد که آماده پر کردن است.
 
 ---
 
