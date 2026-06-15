@@ -1,0 +1,14 @@
+targets:
+  $default:
+    builders:
+      capsa|feature_builder:
+        enabled: true
+
+builders:
+  feature_builder:
+    import: "package:capsa/src/generator/builder.dart"
+    builder_factories: ["capsaFeatureBuilder"]
+    build_extensions:
+      ".dart": [".capsa.dart"]
+    auto_apply: dependents
+    build_to: source

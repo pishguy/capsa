@@ -1,0 +1,38 @@
+name: capsa
+description: >
+  A reactive state management library for Flutter inspired by SolidJS.
+  Fine-grained reactivity with Signals, Computed, Effects, reactive widgets,
+  MVVM architecture, DI, and code generation.
+version: 1.0.0
+
+homepage: https://github.com/pishguy/capsa
+repository: https://github.com/pishguy/capsa.git
+issue_tracker: https://github.com/pishguy/capsa/issues
+documentation: https://github.com/pishguy/capsa#readme
+
+funding:
+  - https://github.com/sponsors/pishguy
+
+topics:
+  - state-management
+  - reactive
+  - signals
+  - mvvm
+  - flutter
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  build: ^4.0.6
+  flutter:
+    sdk: flutter
+  source_gen: ^4.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+executables:
+  capsa:
