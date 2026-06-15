@@ -1,3 +1,8 @@
+## 1.0.2
+
+- Also re-export `capsule()` and `CapsuleHandle` from `package:rearch`.
+  Single `import 'package:capsa/capsa.dart'` covers all Capsa + rearch APIs.
+
 ## 1.0.1
 
 - BREAKING: `rearch` and `flutter_rearch` are now direct dependencies of capsa (users no longer

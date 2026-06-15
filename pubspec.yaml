@@ -4,7 +4,7 @@ description: >
   Builds on flutter_rearch for capsule-based DI and lifecycle.
   Fine-grained reactivity with Signals, Computed, Effects, reactive widgets,
   MVVM architecture, DI, and code generation.
-version: 1.0.1
+version: 1.0.2
 
 homepage: https://github.com/pishguy/capsa
 repository: https://github.com/pishguy/capsa.git
